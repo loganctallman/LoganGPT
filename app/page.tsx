@@ -1,0 +1,375 @@
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+type HealthStatus = "checking" | "ok" | "error";
+
+const SUGGESTED_PROMPTS = [
+  "What's Logan's testing stack?",
+  "Tell me about his side projects",
+  "What makes Logan a strong QA lead?",
+  "Tell me about Logan's resume.",
+];
+
+function formatRelativeTime(date: Date): string {
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 5) return "just now";
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+export default function Home() {
+  const {
+    messages,
+    input,
+    handleInputChange,
+    handleSubmit,
+    isLoading,
+    error,
+    stop,
+    setMessages,
+    append,
+    reload,
+  } = useChat({ api: "/api/chat" });
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Track message creation times without triggering re-renders on every message
+  const msgTimesRef = useRef<Map<string, Date>>(new Map());
+  const [timeTick, setTimeTick] = useState(0);
+
+  const [healthStatus, setHealthStatus] = useState<HealthStatus>("checking");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Stamp each new message with a creation time
+  useEffect(() => {
+    let changed = false;
+    for (const m of messages) {
+      if (!msgTimesRef.current.has(m.id)) {
+        msgTimesRef.current.set(m.id, new Date());
+        changed = true;
+      }
+    }
+    if (changed) setTimeTick((n) => n + 1);
+  }, [messages]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  useEffect(() => {
+    fetch("/api/health")
+      .then((res) => setHealthStatus(res.ok ? "ok" : "error"))
+      .catch(() => setHealthStatus("error"));
+  }, []);
+
+  // Return focus to input after streaming completes
+  useEffect(() => {
+    if (!isLoading) inputRef.current?.focus();
+  }, [isLoading]);
+
+  const handleCopy = useCallback((id: string, content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }, []);
+
+  const handleClearChat = useCallback(() => {
+    setMessages([]);
+  }, [setMessages]);
+
+  const handleSuggestedPrompt = useCallback(
+    (prompt: string) => {
+      append({ role: "user", content: prompt });
+    },
+    [append]
+  );
+
+  return (
+    <div className="flex flex-col h-screen max-w-2xl mx-auto px-4">
+
+      {/* ── Header ── */}
+      <div className="py-6 border-b border-white/[0.07] flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="title-glow text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-300 via-violet-300 to-purple-300 bg-clip-text text-transparent">
+            LoganGPT
+          </h1>
+          <p className="text-sm text-white/30 mt-1.5 tracking-wide">
+            Ask anything about Logan
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+
+          {/* API health indicator */}
+          <div className="group/tip relative flex items-center justify-center w-9 h-9">
+            <span
+              className={`block w-2.5 h-2.5 rounded-full ${
+                healthStatus === "ok"
+                  ? "bg-emerald-400"
+                  : healthStatus === "error"
+                  ? "bg-red-400"
+                  : "bg-yellow-400 status-pulse"
+              }`}
+            />
+            <span className="tooltip">
+              {healthStatus === "ok"
+                ? "API is responsive"
+                : healthStatus === "error"
+                ? "API failed health check"
+                : "Verifying connection…"}
+            </span>
+          </div>
+
+          {/* Clear chat — only visible when there are messages */}
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearChat}
+              aria-label="Clear chat history"
+              className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+              <span className="tooltip">Clear chat</span>
+            </button>
+          )}
+
+          {/* Resume button */}
+          <a
+            href="https://drive.google.com/file/d/1-B6ARh4EtKlyNz576xO8_ghf_TBtK19U/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View Logan's resume (opens in new tab)"
+            className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span className="tooltip">Resume</span>
+          </a>
+
+          {/* LinkedIn button */}
+          <a
+            href="https://www.linkedin.com/in/logan-tallman-9245583b4"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View Logan's LinkedIn profile (opens in new tab)"
+            className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            <span className="tooltip">LinkedIn</span>
+          </a>
+        </div>
+      </div>
+
+      {/* ── Messages ── */}
+      <div
+        className="flex-1 overflow-y-auto py-6 space-y-5"
+        role="log"
+        aria-label="Chat messages"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
+        {/* Empty state with suggested prompts */}
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center gap-4 mt-12 select-none">
+            <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center text-2xl shadow-lg">
+              💬
+            </div>
+            <p className="text-white/25 text-sm tracking-wide">
+              Ask about Logan&apos;s background, skills, or experience
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center mt-1 max-w-sm px-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => handleSuggestedPrompt(prompt)}
+                  className="prompt-chip"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message list */}
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`message-in flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            <div className="group/msg relative max-w-[85%]">
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm leading-relaxed text-white/90 ${
+                  m.role === "user"
+                    ? "bubble-user whitespace-pre-wrap"
+                    : "bubble-assistant prose-chat"
+                }`}
+              >
+                {m.role === "user" ? (
+                  m.content
+                ) : (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ href, children }) => (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-violet-300 underline underline-offset-2 hover:text-violet-200"
+                        >
+                          {children}
+                        </a>
+                      ),
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
+                )}
+              </div>
+
+              {/* Timestamp + copy button — visible on hover */}
+              <div
+                className={`flex items-center gap-1.5 mt-1 px-1 opacity-0 group-hover/msg:opacity-100 transition-opacity duration-150 ${
+                  m.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <span className="text-white/20 text-xs" suppressHydrationWarning>
+                  {/* timeTick forces re-render so relative times stay fresh */}
+                  {timeTick >= 0 && formatRelativeTime(msgTimesRef.current.get(m.id) ?? new Date())}
+                </span>
+                {m.role === "assistant" && (
+                  <button
+                    onClick={() => handleCopy(m.id, m.content)}
+                    aria-label={copiedId === m.id ? "Copied!" : "Copy message"}
+                    className="copy-btn"
+                  >
+                    {copiedId === m.id ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                      </svg>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {isLoading && (
+          <div className="flex justify-start message-in">
+            <div className="bubble-assistant rounded-2xl px-5 py-4">
+              <span className="inline-flex gap-2 items-center">
+                <span className="inline-flex gap-1.5">
+                  <span className="dot w-1.5 h-1.5 bg-violet-300/70 rounded-full" />
+                  <span className="dot w-1.5 h-1.5 bg-violet-300/70 rounded-full" />
+                  <span className="dot w-1.5 h-1.5 bg-violet-300/70 rounded-full" />
+                </span>
+                <span className="text-white/30 text-xs">Logan is thinking…</span>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Error state with retry */}
+        {error && (
+          <div className="message-in flex justify-start">
+            <div className="glass rounded-2xl px-4 py-3 border border-red-500/20 bg-red-500/5 max-w-[85%]">
+              <p className="text-red-300/80 text-xs">
+                Something went wrong.{" "}
+                <button
+                  onClick={() => reload()}
+                  className="underline hover:text-red-200/80 transition-colors"
+                >
+                  Retry
+                </button>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* ── Input bar ── */}
+      <div className="py-5 border-t border-white/[0.07]">
+        <form onSubmit={handleSubmit} className="flex gap-3">
+          <div className="relative flex-1">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={handleInputChange}
+              placeholder="Ask about Logan..."
+              disabled={isLoading}
+              maxLength={500}
+              aria-label="Message input"
+              className="glass-input w-full rounded-2xl px-5 py-3.5 pr-12 text-sm text-white/90 placeholder:text-white/25 disabled:opacity-40"
+            />
+
+            {/* Enter hint — shown when input is empty */}
+            {!isLoading && input.length === 0 && (
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-white/15 text-xs pointer-events-none select-none">
+                ↵
+              </span>
+            )}
+
+            {/* Character counter — shown near the limit */}
+            {input.length > 400 && (
+              <span
+                className={`absolute right-4 top-1/2 -translate-y-1/2 text-xs pointer-events-none select-none ${
+                  input.length > 480 ? "text-red-400/70" : "text-white/25"
+                }`}
+              >
+                {500 - input.length}
+              </span>
+            )}
+          </div>
+
+          {isLoading ? (
+            <button
+              type="button"
+              onClick={stop}
+              aria-label="Stop response"
+              className="btn-stop rounded-2xl px-6 py-3.5 text-sm font-semibold text-white tracking-wide"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              aria-label="Send message"
+              className="btn-send rounded-2xl px-6 py-3.5 text-sm font-semibold text-white tracking-wide"
+            >
+              Send
+            </button>
+          )}
+        </form>
+      </div>
+
+    </div>
+  );
+}
