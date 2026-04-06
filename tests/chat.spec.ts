@@ -24,7 +24,7 @@ async function mockHealthError(page: Page) {
 async function mockChatResponse(page: Page, reply: string) {
   await page.route("/api/chat", (route) => {
     // Encode as AI SDK data-stream protocol (text part type "0:")
-    const chunks = reply.match(/.{1,10}/g) ?? [reply];
+    const chunks = reply.match(/[\s\S]{1,10}/g) ?? [reply];
     const body = chunks.map((c) => `0:${JSON.stringify(c)}\n`).join("");
     route.fulfill({
       status: 200,
@@ -40,6 +40,27 @@ async function mockChatResponse(page: Page, reply: string) {
 /** Mock /api/chat to return a network error. */
 async function mockChatError(page: Page) {
   await page.route("/api/chat", (route) => route.abort("failed"));
+}
+
+/** Mock /api/chat with a delay so streaming state can be observed. */
+async function mockSlowChat(page: Page, reply: string, delayMs = 2500) {
+  await page.route("/api/chat", async (route) => {
+    await new Promise((r) => setTimeout(r, delayMs));
+    const chunks = reply.match(/[\s\S]{1,10}/g) ?? [reply];
+    const body = chunks.map((c) => `0:${JSON.stringify(c)}\n`).join("");
+    route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "text/event-stream", "x-vercel-ai-data-stream": "v1" },
+      body,
+    });
+  });
+}
+
+/** Mock /api/chat to return a 429 rate limit response. */
+async function mockRateLimit(page: Page) {
+  await page.route("/api/chat", (route) =>
+    route.fulfill({ status: 429, body: "Too many requests. Please slow down." })
+  );
 }
 
 // ── 1. Layout & Header ─────────────────────────────────────────────────────────
@@ -395,5 +416,356 @@ test.describe("Accessibility", () => {
     await expect(
       page.getByRole("link", { name: /view logan's linkedin/i })
     ).toBeVisible();
+  });
+});
+
+// ── 10. Multi-turn Conversation ────────────────────────────────────────────────
+
+test.describe("Multi-turn Conversation", () => {
+  test("second message can be sent after first response", async ({ page }) => {
+    await mockHealthOk(page);
+    let calls = 0;
+    await page.route("/api/chat", (route) => {
+      calls++;
+      const reply = calls === 1 ? "I am Logan, a QA Engineer." : "I have worked at Extreme Reach.";
+      const body = (reply.match(/.{1,10}/g) ?? [reply]).map((c) => `0:${JSON.stringify(c)}\n`).join("");
+      route.fulfill({
+        status: 200,
+        headers: { "Content-Type": "text/event-stream", "x-vercel-ai-data-stream": "v1" },
+        body,
+      });
+    });
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+
+    await page.getByLabel("Message input").fill("Where has he worked?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("all messages remain visible in conversation history", async ({ page }) => {
+    await mockHealthOk(page);
+    let calls = 0;
+    await page.route("/api/chat", (route) => {
+      calls++;
+      const reply = calls === 1 ? "I am Logan." : "I worked at Extreme Reach.";
+      const body = (reply.match(/.{1,10}/g) ?? [reply]).map((c) => `0:${JSON.stringify(c)}\n`).join("");
+      route.fulfill({
+        status: 200,
+        headers: { "Content-Type": "text/event-stream", "x-vercel-ai-data-stream": "v1" },
+        body,
+      });
+    });
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+
+    await page.getByLabel("Message input").fill("Where has he worked?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+
+    await expect(page.locator(".bubble-user")).toHaveCount(2);
+    await expect(page.locator(".bubble-assistant")).toHaveCount(2);
+  });
+});
+
+// ── 11. Stop Streaming ─────────────────────────────────────────────────────────
+
+test.describe("Stop Streaming", () => {
+  test("clicking stop returns the Send button", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockSlowChat(page, "Logan is a Senior QA Engineer.", 5_000);
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByRole("button", { name: /stop/i })).toBeVisible({ timeout: 5_000 });
+    await page.getByRole("button", { name: /stop/i }).click();
+
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 5_000 });
+  });
+
+  test("clicking stop dismisses the typing indicator", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockSlowChat(page, "Logan is a Senior QA Engineer.", 5_000);
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByText("Logan is thinking…")).toBeVisible({ timeout: 5_000 });
+    await page.getByRole("button", { name: /stop/i }).click();
+
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible();
+  });
+});
+
+// ── 12. Retry ─────────────────────────────────────────────────────────────────
+
+test.describe("Retry", () => {
+  test("clicking retry fires a new request and shows a response", async ({ page }) => {
+    await mockHealthOk(page);
+    let calls = 0;
+    await page.route("/api/chat", (route) => {
+      calls++;
+      if (calls === 1) {
+        route.abort("failed");
+      } else {
+        const body = `0:${JSON.stringify("Logan is a QA Engineer.")}\n`;
+        route.fulfill({
+          status: 200,
+          headers: { "Content-Type": "text/event-stream", "x-vercel-ai-data-stream": "v1" },
+          body,
+        });
+      }
+    });
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+
+    await page.getByRole("button", { name: /retry/i }).click();
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// ── 13. Input State During Loading ────────────────────────────────────────────
+
+test.describe("Input State During Loading", () => {
+  test("input is disabled while response is streaming", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockSlowChat(page, "Logan is a QA Engineer.", 2_500);
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByRole("button", { name: /stop/i })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByLabel("Message input")).toBeDisabled();
+  });
+
+  test("input re-enables after response completes", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan is a QA Engineer.");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Message input")).toBeEnabled();
+  });
+});
+
+// ── 14. Whitespace Input ──────────────────────────────────────────────────────
+
+test.describe("Whitespace Input", () => {
+  test("whitespace-only input keeps Send button disabled", async ({ page }) => {
+    await mockHealthOk(page);
+    await page.goto("/");
+    await page.getByLabel("Message input").fill("     ");
+    await expect(page.getByRole("button", { name: "Send" })).toBeDisabled();
+  });
+});
+
+// ── 15. Markdown Rendering ────────────────────────────────────────────────────
+
+test.describe("Markdown Rendering", () => {
+  test("bold text renders as a <strong> element", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan is a **Senior QA Engineer** with 16 years of experience.");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Wait for stream to complete
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    const strong = page.locator(".bubble-assistant strong").first();
+    await expect(strong).toBeVisible();
+    await expect(strong).toContainText("Senior QA Engineer");
+  });
+
+  test("list items render as <li> elements", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Skills:\n\n- Playwright\n- TestRail\n- Jira");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("What are Logan's skills?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant li").first()).toBeVisible();
+  });
+
+  test("inline code renders as a <code> element", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan uses `Playwright` for automation testing.");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("What does Logan use for testing?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    const code = page.locator(".bubble-assistant code").first();
+    await expect(code).toBeVisible();
+    await expect(code).toContainText("Playwright");
+  });
+});
+
+// ── 16. Copy Button on User Messages ─────────────────────────────────────────
+
+test.describe("Copy Button on User Messages", () => {
+  test("copy button does not appear when hovering a user message", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan is a QA Engineer.");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    const userBubble = page.locator(".bubble-user").first();
+    await expect(userBubble).toBeVisible();
+    await userBubble.hover();
+
+    // The copy button should not exist in or near the user bubble
+    const userMsgContainer = userBubble.locator("..");
+    await expect(userMsgContainer.getByRole("button", { name: /copy/i })).not.toBeVisible();
+  });
+});
+
+// ── 17. Error State Clears ────────────────────────────────────────────────────
+
+test.describe("Error State Clears", () => {
+  test("error disappears when a subsequent message succeeds", async ({ page }) => {
+    await mockHealthOk(page);
+    let calls = 0;
+    await page.route("/api/chat", (route) => {
+      calls++;
+      if (calls === 1) {
+        route.abort("failed");
+      } else {
+        const body = `0:${JSON.stringify("Logan is a QA Engineer.")}\n`;
+        route.fulfill({
+          status: 200,
+          headers: { "Content-Type": "text/event-stream", "x-vercel-ai-data-stream": "v1" },
+          body,
+        });
+      }
+    });
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+
+    await page.getByLabel("Message input").fill("Try again");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).not.toBeVisible();
+  });
+});
+
+// ── 18. Input Focus ───────────────────────────────────────────────────────────
+
+test.describe("Input Focus", () => {
+  test("input refocuses after response completes", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan is a QA Engineer.");
+    await page.goto("/");
+
+    // Move focus away from the input
+    await page.getByRole("heading", { name: "LoganGPT" }).click();
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Wait for response to complete
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("Message input")).toBeFocused();
+  });
+});
+
+// ── 19. Health Tooltip ────────────────────────────────────────────────────────
+
+test.describe("Health Tooltip", () => {
+  test("tooltip shows correct text when API is healthy", async ({ page }) => {
+    await mockHealthOk(page);
+    await page.goto("/");
+    await expect(page.getByText("API is responsive")).toBeAttached();
+  });
+
+  test("tooltip shows correct text when API is unhealthy", async ({ page }) => {
+    await mockHealthError(page);
+    await page.goto("/");
+    await expect(page.getByText("API failed health check")).toBeAttached();
+  });
+});
+
+// ── 20. Rate Limiting ─────────────────────────────────────────────────────────
+
+test.describe("Rate Limiting", () => {
+  test("429 response triggers error state", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockRateLimit(page);
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// ── 21. Page Metadata ─────────────────────────────────────────────────────────
+
+test.describe("Page Metadata", () => {
+  test("page has the correct title", async ({ page }) => {
+    await mockHealthOk(page);
+    await page.goto("/");
+    await expect(page).toHaveTitle(/LoganGPT/);
+  });
+});
+
+// ── 22. Mobile Viewport ───────────────────────────────────────────────────────
+
+test.describe("Mobile Viewport", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("key elements are visible on mobile", async ({ page }) => {
+    await mockHealthOk(page);
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "LoganGPT" })).toBeVisible();
+    await expect(page.getByLabel("Message input")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+  });
+
+  test("suggested prompt chips are visible on mobile", async ({ page }) => {
+    await mockHealthOk(page);
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: "What's Logan's testing stack?" })).toBeVisible();
+  });
+
+  test("full chat flow works on mobile", async ({ page }) => {
+    await mockHealthOk(page);
+    await mockChatResponse(page, "Logan is a Senior QA Engineer.");
+    await page.goto("/");
+
+    await page.getByLabel("Message input").fill("Who is Logan?");
+    await page.getByRole("button", { name: "Send" }).click();
+
+    await expect(page.locator(".bubble-user").first()).toBeVisible();
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
   });
 });
