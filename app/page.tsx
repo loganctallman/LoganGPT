@@ -36,8 +36,9 @@ export default function Home() {
     reload,
   } = useChat({ api: "/api/chat" });
 
-  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const thinkingRef = useRef<HTMLDivElement>(null);
+  const prevIsLoadingRef = useRef(false);
   // Track message creation times without triggering re-renders on every message
   const msgTimesRef = useRef<Map<string, Date>>(new Map());
   const [timeTick, setTimeTick] = useState(0);
@@ -58,14 +59,20 @@ export default function Home() {
   }, [messages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
     fetch("/api/health")
       .then((res) => setHealthStatus(res.ok ? "ok" : "error"))
       .catch(() => setHealthStatus("error"));
   }, []);
+
+  // Scroll thinking indicator into view when a new submission starts
+  useEffect(() => {
+    if (isLoading && !prevIsLoadingRef.current) {
+      requestAnimationFrame(() => {
+        thinkingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading]);
 
   // Return focus to input after streaming completes
   useEffect(() => {
@@ -91,10 +98,10 @@ export default function Home() {
   );
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto px-4">
+    <div className="flex flex-col h-dvh max-w-2xl mx-auto px-4">
 
       {/* ── Header ── */}
-      <div className="py-6 border-b border-white/[0.07] flex items-center justify-between gap-4">
+      <div className="py-3 sm:py-6 border-b border-white/[0.07] flex items-center justify-between gap-4">
         <div className="min-w-0">
           <h1 className="title-glow text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-300 via-violet-300 to-purple-300 bg-clip-text text-transparent">
             LoganGPT
@@ -145,7 +152,7 @@ export default function Home() {
 
           {/* Resume button */}
           <a
-            href="https://drive.google.com/file/d/1-B6ARh4EtKlyNz576xO8_ghf_TBtK19U/view?usp=sharing"
+            href="https://drive.google.com/file/d/1nn7QwJJEb9OIMxMZzmINtiJTBbUBWgeV/view?usp=sharing"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View Logan's resume (opens in new tab)"
@@ -161,25 +168,27 @@ export default function Home() {
             <span className="tooltip">Resume</span>
           </a>
 
-          {/* LinkedIn button */}
+          {/* Portfolio button */}
           <a
-            href="https://www.linkedin.com/in/logan-tallman-9245583b4"
+            href="https://loganctallman.vercel.app/"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="View Logan's LinkedIn profile (opens in new tab)"
+            aria-label="View Logan's portfolio (opens in new tab)"
             className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
             </svg>
-            <span className="tooltip">LinkedIn</span>
+            <span className="tooltip">Portfolio</span>
           </a>
         </div>
       </div>
 
       {/* ── Messages ── */}
       <div
-        className="flex-1 overflow-y-auto py-6 space-y-5"
+        className="flex-1 min-h-0 overflow-y-auto py-6 space-y-5"
         role="log"
         aria-label="Chat messages"
         aria-live="polite"
@@ -187,7 +196,7 @@ export default function Home() {
       >
         {/* Empty state with suggested prompts */}
         {messages.length === 0 && (
-          <div className="flex flex-col items-center gap-4 mt-12 select-none">
+          <div className="flex flex-col items-center gap-4 mt-6 sm:mt-12 select-none">
             <div className="w-14 h-14 rounded-2xl glass flex items-center justify-center text-2xl shadow-lg">
               💬
             </div>
@@ -280,7 +289,7 @@ export default function Home() {
 
         {/* Typing indicator */}
         {isLoading && (
-          <div className="flex justify-start message-in">
+          <div ref={thinkingRef} className="flex justify-start message-in">
             <div className="bubble-assistant rounded-2xl px-5 py-4">
               <span className="inline-flex gap-2 items-center">
                 <span className="inline-flex gap-1.5">
@@ -311,11 +320,10 @@ export default function Home() {
           </div>
         )}
 
-        <div ref={bottomRef} />
       </div>
 
       {/* ── Input bar ── */}
-      <div className="py-5 border-t border-white/[0.07]">
+      <div className="py-3 sm:py-5 border-t border-white/[0.07]">
         <form onSubmit={handleSubmit} className="flex gap-3">
           <div className="relative flex-1">
             <input

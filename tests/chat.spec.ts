@@ -84,12 +84,12 @@ test.describe("Layout & Header", () => {
     );
   });
 
-  test("LinkedIn link opens correct URL in new tab", async ({ page }) => {
+  test("Portfolio link opens correct URL in new tab", async ({ page }) => {
     await mockHealthOk(page);
     await page.goto("/");
-    const linkedinLink = page.getByRole("link", { name: /linkedin/i });
-    await expect(linkedinLink).toHaveAttribute("target", "_blank");
-    await expect(linkedinLink).toHaveAttribute("href", /linkedin\.com\/in\/logan/);
+    const portfolioLink = page.getByRole("link", { name: /portfolio/i });
+    await expect(portfolioLink).toHaveAttribute("target", "_blank");
+    await expect(portfolioLink).toHaveAttribute("href", /loganctallman\.vercel\.app/);
   });
 
   test("clear chat button is hidden on initial load", async ({ page }) => {
@@ -410,11 +410,11 @@ test.describe("Accessibility", () => {
     ).toBeVisible();
   });
 
-  test("LinkedIn link has aria-label", async ({ page }) => {
+  test("Portfolio link has aria-label", async ({ page }) => {
     await mockHealthOk(page);
     await page.goto("/");
     await expect(
-      page.getByRole("link", { name: /view logan's linkedin/i })
+      page.getByRole("link", { name: /view logan's portfolio/i })
     ).toBeVisible();
   });
 });
