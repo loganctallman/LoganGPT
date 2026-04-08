@@ -9,9 +9,9 @@ type HealthStatus = "checking" | "ok" | "error";
 
 const SUGGESTED_PROMPTS = [
   "What's Logan's testing stack?",
-  "Tell me about his side projects",
-  "What makes Logan a strong QA lead?",
   "Tell me about Logan's resume.",
+  "What makes Logan a strong QA lead?",
+  "Tell me about his side projects",
 ];
 
 function formatRelativeTime(date: Date): string {
