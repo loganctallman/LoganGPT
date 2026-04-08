@@ -87,12 +87,20 @@ export function retrieve(query: string, chunks: Chunk[], topK = 5): Chunk[] {
   const scored = chunks.map((chunk) => {
     const text = chunk.text.toLowerCase();
     const section = (chunk.section ?? "").toLowerCase();
+    // Pre-split words once per chunk for the fuzzy pass
+    const words = text.split(/\s+/);
     let score = 0;
 
     for (const token of allTokens) {
       const re = new RegExp(escapeRegex(token), "g");
       const textMatches = text.match(re);
-      if (textMatches) score += textMatches.length * token.length;
+      if (textMatches) {
+        // Exact match — full weight
+        score += textMatches.length * token.length;
+      } else if (fuzzyMatchesAny(token, words)) {
+        // Fuzzy match — 60% weight so exact hits always rank above fuzzy
+        score += token.length * 0.6;
+      }
       if (section.includes(token)) score += token.length * 4;
     }
 
@@ -122,6 +130,61 @@ function tokenize(text: string): string[] {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// ── Fuzzy matching (AUTO:3,6 edit-distance budget) ────────────────────────────
+
+/**
+ * Returns the maximum Levenshtein edits allowed for a given word length,
+ * mirroring the AUTO:3,6 formula used in Elasticsearch/Solr:
+ *   len 1–2 → 0 (exact only)
+ *   len 3–5 → 1 edit
+ *   len 6+  → 2 edits
+ */
+function autoFuzziness(len: number): number {
+  if (len <= 2) return 0;
+  if (len <= 5) return 1;
+  return 2;
+}
+
+/** Levenshtein distance between two strings (iterative, O(m·n)). */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  // Early exits
+  if (m === 0) return n;
+  if (n === 0) return m;
+  if (a === b) return 0;
+
+  // Only allocate two rows instead of a full matrix
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  const curr = new Array<number>(n + 1);
+
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
+    }
+    // Swap rows
+    [prev, curr as unknown as number[]] = [curr as unknown as number[], prev];
+  }
+  return prev[n];
+}
+
+/**
+ * Returns true if any word in `words` is within the AUTO fuzz budget for `token`.
+ * Used only when the exact-match regex pass already scored 0, so this is a
+ * cheaper second pass over the pre-split word list.
+ */
+function fuzzyMatchesAny(token: string, words: string[]): boolean {
+  const maxEdits = autoFuzziness(token.length);
+  if (maxEdits === 0) return false; // short tokens must be exact
+  for (const word of words) {
+    // Skip words that differ too much in length to be within budget
+    if (Math.abs(word.length - token.length) > maxEdits) continue;
+    if (levenshtein(token, word) <= maxEdits) return true;
+  }
+  return false;
 }
 
 const STOPWORDS = new Set([
