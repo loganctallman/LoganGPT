@@ -74,10 +74,6 @@ export default function Home() {
     prevIsLoadingRef.current = isLoading;
   }, [isLoading]);
 
-  // Return focus to input after streaming completes
-  useEffect(() => {
-    if (!isLoading) inputRef.current?.focus();
-  }, [isLoading]);
 
   const handleCopy = useCallback((id: string, content: string) => {
     navigator.clipboard.writeText(content).then(() => {

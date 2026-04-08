@@ -677,25 +677,6 @@ test.describe("Error State Clears", () => {
   });
 });
 
-// ── 18. Input Focus ───────────────────────────────────────────────────────────
-
-test.describe("Input Focus", () => {
-  test("input refocuses after response completes", async ({ page }) => {
-    await mockHealthOk(page);
-    await mockChatResponse(page, "Logan is a QA Engineer.");
-    await page.goto("/");
-
-    // Move focus away from the input
-    await page.getByRole("heading", { name: "LoganGPT" }).click();
-
-    await page.getByLabel("Message input").fill("Who is Logan?");
-    await page.getByRole("button", { name: "Send" }).click();
-
-    // Wait for response to complete
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
-    await expect(page.getByLabel("Message input")).toBeFocused();
-  });
-});
 
 // ── 19. Health Tooltip ────────────────────────────────────────────────────────
 
