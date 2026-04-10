@@ -5,6 +5,9 @@ node_modules/
 .vercel
 .env*.local
 
+# Vitest
+/coverage/
+
 # Playwright
 /test-results/
 /playwright-report/
