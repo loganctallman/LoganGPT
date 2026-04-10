@@ -157,7 +157,7 @@ function levenshtein(a: string, b: string): number {
 
   // Only allocate two rows instead of a full matrix
   let prev = Array.from({ length: n + 1 }, (_, i) => i);
-  const curr = new Array<number>(n + 1);
+  let curr = new Array<number>(n + 1);
 
   for (let i = 1; i <= m; i++) {
     curr[0] = i;
@@ -166,7 +166,7 @@ function levenshtein(a: string, b: string): number {
       curr[j] = Math.min(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost);
     }
     // Swap rows
-    [prev, curr as unknown as number[]] = [curr as unknown as number[], prev];
+    [prev, curr] = [curr, prev];
   }
   return prev[n];
 }

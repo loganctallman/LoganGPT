@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { useEffect, useRef, useState, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { formatRelativeTime } from "@/lib/utils";
 
 type HealthStatus = "checking" | "ok" | "error";
 
@@ -13,14 +14,6 @@ const SUGGESTED_PROMPTS = [
   "What makes Logan a strong QA lead?",
   "Tell me about his side projects",
 ];
-
-function formatRelativeTime(date: Date): string {
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 5) return "just now";
-  if (diff < 60) return `${diff}s ago`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 export default function Home() {
   const {

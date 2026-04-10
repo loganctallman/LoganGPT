@@ -3,27 +3,9 @@ import { streamText, embed } from "ai";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { retrieve, retrieveSemantic, type Chunk } from "@/lib/retrieval";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
-
-// ── In-memory rate limiter ────────────────────────────────────────────────────
-// Note: this is per-instance. For multi-instance production use, swap in
-// Upstash Redis via @upstash/ratelimit for a distributed counter.
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 20;    // requests per window
-const RATE_WINDOW = 60_000; // 1 minute (ms)
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
 
 // ── Knowledge base ────────────────────────────────────────────────────────────
 // Loaded once at module level — cached between requests in prod
