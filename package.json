@@ -1,11 +1,12 @@
 {
   "name": "logangpt",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "ingest": "node scripts/ingest.js",
+    "ingest": "node scripts/ingest.cjs",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:unit": "vitest run",
