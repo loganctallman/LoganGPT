@@ -71,7 +71,15 @@ function normalizeText(text) {
 let chunkCounter = 0;
 
 function splitIntoChunks(text, source, section) {
-  const paragraphs = text.split(/\n\n+/);
+  // Split on double newlines first; if any block is still huge (e.g. PDFs with
+  // no paragraph breaks), shatter it further on single newlines so the
+  // CHUNK_SIZE accumulation logic actually fires.
+  const rawParagraphs = text.split(/\n\n+/);
+  const paragraphs = rawParagraphs.flatMap((p) =>
+    p.length > CHUNK_SIZE
+      ? p.split(/\n/).filter((l) => l.trim().length > 0)
+      : [p]
+  );
   const chunks = [];
   let buffer = "";
 
