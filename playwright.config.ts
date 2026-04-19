@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: "html",
   use: {
     baseURL: "http://localhost:3000",
@@ -19,9 +19,40 @@ export default defineConfig({
     },
   },
   projects: [
+    // ── Full suite on Chromium ────────────────────────────────────────────────
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+
+    // ── Cross-browser: functional core only ──────────────────────────────────
+    // visual.spec.ts  — snapshots are browser-specific; Chromium baselines are canonical
+    // performance.spec.ts — thresholds are tuned for Chrome's Performance API
+    // chaos.spec.ts   — 30–60 s hanging mocks; running on 3 browsers triples CI time
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+      testIgnore: [
+        "**/visual.spec.ts",
+        "**/performance.spec.ts",
+        "**/chaos.spec.ts",
+      ],
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+      testIgnore: [
+        "**/visual.spec.ts",
+        "**/performance.spec.ts",
+        "**/chaos.spec.ts",
+      ],
+    },
+
+    // ── Mobile responsive: core functional at real phone viewport ─────────────
+    {
+      name: "mobile-chrome",
+      use: { ...devices["Pixel 5"] },
+      testMatch: ["**/chat.spec.ts", "**/accessibility.spec.ts"],
     },
   ],
   webServer: {

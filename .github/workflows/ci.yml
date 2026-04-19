@@ -54,15 +54,15 @@ jobs:
         id: pw-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ steps.pw-version.outputs.version }}
+          key: playwright-browsers-${{ steps.pw-version.outputs.version }}
 
       - name: Install Playwright browsers
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install --with-deps
 
       - name: Install Playwright system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps
 
       - name: Run Playwright tests
         run: npx playwright test --reporter=list
