@@ -65,10 +65,25 @@ jobs:
         run: npx playwright install-deps
 
       - name: Run Playwright tests
-        run: npx playwright test --reporter=list
+        # --update-snapshots=missing writes baselines that don't exist yet (e.g. first
+        # Linux run) without overwriting existing ones, so real regressions still fail.
+        run: npx playwright test --reporter=list --update-snapshots=missing
         env:
           # Tests mock all API routes — a placeholder key is enough to start the dev server
           OPENAI_API_KEY: sk-placeholder-for-ci
+
+      - name: Commit new visual baselines if generated
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add tests/visual.spec.ts-snapshots/ || true
+          if git diff --staged --quiet; then
+            echo "No new snapshots — nothing to commit"
+          else
+            git commit -m "ci: add Linux visual regression baselines [skip ci]"
+            git push
+          fi
 
       - name: Upload test report
         uses: actions/upload-artifact@v4
@@ -77,15 +92,6 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
-
-      - name: Upload new snapshots (if visual tests wrote them)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: visual-snapshots-linux
-          path: tests/visual.spec.ts-snapshots/
-          if-no-files-found: ignore
-          retention-days: 7
 
   # ── Lighthouse CI (Performance Budget) ──────────────────────────────────────
   lighthouse:
