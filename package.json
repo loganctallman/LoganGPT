@@ -11,7 +11,9 @@
     "test:ui": "playwright test --ui",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:perf": "playwright test tests/performance.spec.ts",
+    "lhci": "npx @lhci/cli@latest autorun"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.24",
@@ -25,6 +27,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
     "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/node": "^25.5.0",

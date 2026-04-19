@@ -127,7 +127,7 @@ export default function Home() {
             <button
               onClick={handleClearChat}
               aria-label="Clear chat history"
-              className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+              className="group/tip relative flex items-center justify-center w-11 h-11 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
@@ -145,7 +145,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View Logan's resume (opens in new tab)"
-            className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+            className="group/tip relative flex items-center justify-center w-11 h-11 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -163,7 +163,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View Logan's portfolio (opens in new tab)"
-            className="group/tip relative flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
+            className="group/tip relative flex items-center justify-center w-11 h-11 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.07] transition-all duration-200"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/>
