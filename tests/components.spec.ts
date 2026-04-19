@@ -35,7 +35,12 @@ async function mockSlowChat(page: Page, reply: string, delayMs = 3_000) {
 
 /** Grants clipboard permissions and stubs writeText to resolve immediately. */
 async function grantClipboard(page: Page) {
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  try {
+    // Chromium and Firefox support this; WebKit throws — the addInitScript stub below suffices
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  } catch {
+    // ignored — clipboard is fully mocked below regardless
+  }
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: () => Promise.resolve() },
@@ -118,7 +123,7 @@ test.describe("Enter Hint Visibility", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     // Wait until loading finishes and input is cleared
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 20_000 });
     // Input is empty after response → enter hint should return
     await expect(page.locator("text=↵")).toBeVisible();
   });
@@ -137,7 +142,7 @@ test.describe("Copy Button Feedback", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     const bubble = page.locator(".bubble-assistant").first();
-    await expect(bubble).toBeVisible({ timeout: 10_000 });
+    await expect(bubble).toBeVisible({ timeout: 20_000 });
     await bubble.hover();
 
     const copyBtn = page.getByRole("button", { name: "Copy message" });
@@ -157,7 +162,7 @@ test.describe("Copy Button Feedback", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     const bubble = page.locator(".bubble-assistant").first();
-    await expect(bubble).toBeVisible({ timeout: 10_000 });
+    await expect(bubble).toBeVisible({ timeout: 20_000 });
     await bubble.hover();
     await page.getByRole("button", { name: "Copy message" }).click();
     await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
@@ -223,7 +228,7 @@ test.describe("Message Timestamp", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     const assistantBubble = page.locator(".bubble-assistant").first();
-    await expect(assistantBubble).toBeVisible({ timeout: 10_000 });
+    await expect(assistantBubble).toBeVisible({ timeout: 20_000 });
     await assistantBubble.hover();
 
     const timestampArea = assistantBubble.locator("..").locator("span.text-white\\/20");

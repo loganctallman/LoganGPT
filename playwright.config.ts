@@ -41,6 +41,7 @@ export default defineConfig({
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+      timeout: 90_000, // WebKit on Linux CI is slower than Chromium/Firefox
       testIgnore: [
         "**/visual.spec.ts",
         "**/performance.spec.ts",

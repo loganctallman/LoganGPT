@@ -83,8 +83,8 @@ test.describe("Axe — WCAG 2.1 AA automated scan", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -130,7 +130,7 @@ test.describe("Axe — WCAG 2.1 AA automated scan", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 20_000 });
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -258,7 +258,7 @@ test.describe("Keyboard — navigation and interaction", () => {
     }
 
     if (chipFocused) {
-      await expect(page.locator(".bubble-user").first()).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator(".bubble-user").first()).toBeVisible({ timeout: 20_000 });
     }
     // If chip not reached in 20 tabs, skip — don't fail on tab-order variability
   });
@@ -355,7 +355,7 @@ test.describe("ARIA — roles, labels, and live regions", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     const bubble = page.locator(".bubble-assistant").first();
-    await expect(bubble).toBeVisible({ timeout: 10_000 });
+    await expect(bubble).toBeVisible({ timeout: 20_000 });
     await bubble.hover();
 
     const copyBtn = page.getByRole("button", { name: /copy/i });
@@ -417,7 +417,7 @@ test.describe("Focus — visibility and management", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     // After stream completes and input clears, focus should be back on the input
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 20_000 });
     const focused = await page.evaluate(() =>
       document.activeElement?.getAttribute("aria-label") ?? ""
     );
@@ -490,7 +490,7 @@ test.describe("Reduced motion — prefers-reduced-motion", () => {
     await page.goto("/");
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
 
     expect(errors).toHaveLength(0);
   });

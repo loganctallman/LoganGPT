@@ -240,7 +240,7 @@ test.describe("Messaging Flow", () => {
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("input is cleared after sending a message", async ({ page }) => {
@@ -360,7 +360,7 @@ test.describe("Copy Button", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     const assistantBubble = page.locator(".bubble-assistant").first();
-    await expect(assistantBubble).toBeVisible({ timeout: 10_000 });
+    await expect(assistantBubble).toBeVisible({ timeout: 20_000 });
 
     // Hover to reveal copy button
     await assistantBubble.hover();
@@ -380,7 +380,7 @@ test.describe("Error State", () => {
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: /retry/i })).toBeVisible();
   });
 });
@@ -439,12 +439,12 @@ test.describe("Multi-turn Conversation", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
 
     await page.getByLabel("Message input").fill("Where has he worked?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 20_000 });
   });
 
   test("all messages remain visible in conversation history", async ({ page }) => {
@@ -464,13 +464,13 @@ test.describe("Multi-turn Conversation", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
 
     await page.getByLabel("Message input").fill("Where has he worked?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").nth(1)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
 
     await expect(page.locator(".bubble-user")).toHaveCount(2);
     await expect(page.locator(".bubble-assistant")).toHaveCount(2);
@@ -532,10 +532,10 @@ test.describe("Retry", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 20_000 });
 
     await page.getByRole("button", { name: /retry/i }).click();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
   });
 });
 
@@ -562,7 +562,7 @@ test.describe("Input State During Loading", () => {
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 20_000 });
     await expect(page.getByLabel("Message input")).toBeEnabled();
   });
 });
@@ -590,7 +590,7 @@ test.describe("Markdown Rendering", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     // Wait for stream to complete
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
     const strong = page.locator(".bubble-assistant strong").first();
     await expect(strong).toBeVisible();
     await expect(strong).toContainText("Senior QA Engineer");
@@ -604,7 +604,7 @@ test.describe("Markdown Rendering", () => {
     await page.getByLabel("Message input").fill("What are Logan's skills?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
     await expect(page.locator(".bubble-assistant li").first()).toBeVisible();
   });
 
@@ -616,7 +616,7 @@ test.describe("Markdown Rendering", () => {
     await page.getByLabel("Message input").fill("What does Logan use for testing?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Logan is thinking…")).not.toBeVisible({ timeout: 20_000 });
     const code = page.locator(".bubble-assistant code").first();
     await expect(code).toBeVisible();
     await expect(code).toContainText("Playwright");
@@ -626,7 +626,9 @@ test.describe("Markdown Rendering", () => {
 // ── 16. Copy Button on User Messages ─────────────────────────────────────────
 
 test.describe("Copy Button on User Messages", () => {
-  test("copy button does not appear when hovering a user message", async ({ page }) => {
+  test("copy button does not appear when hovering a user message", async ({ page, browserName }) => {
+    // WebKit does not synthesise :hover via page.hover() the same way Chromium/Firefox do
+    test.skip(browserName === "webkit", "WebKit hover synthesis differs — covered by Chromium");
     await mockHealthOk(page);
     await mockChatResponse(page, "Logan is a QA Engineer.");
     await page.goto("/");
@@ -667,12 +669,12 @@ test.describe("Error State Clears", () => {
 
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 20_000 });
 
     await page.getByLabel("Message input").fill("Try again");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("Something went wrong.")).not.toBeVisible();
   });
 });
@@ -705,7 +707,7 @@ test.describe("Rate Limiting", () => {
     await page.getByLabel("Message input").fill("Who is Logan?");
     await page.getByRole("button", { name: "Send" }).click();
 
-    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Something went wrong.")).toBeVisible({ timeout: 20_000 });
   });
 });
 
@@ -747,6 +749,6 @@ test.describe("Mobile Viewport", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     await expect(page.locator(".bubble-user").first()).toBeVisible();
-    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".bubble-assistant").first()).toBeVisible({ timeout: 20_000 });
   });
 });

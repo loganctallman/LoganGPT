@@ -10,6 +10,10 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  # Opt into Node.js 24 for all action runtimes ahead of the June 2026 forced migration.
+  # Silences "Node.js 20 actions are deprecated" warnings from actions/cache,
+  # actions/checkout, actions/setup-node, and actions/upload-artifact.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ── Unit Tests (Vitest) ───────────────────────────────────────────────────────
@@ -67,7 +71,7 @@ jobs:
       - name: Run Playwright tests
         # --update-snapshots=missing writes baselines that don't exist yet (e.g. first
         # Linux run) without overwriting existing ones, so real regressions still fail.
-        run: npx playwright test --reporter=list --update-snapshots=missing
+        run: npx playwright test --reporter=list,html --update-snapshots=missing
         env:
           # Tests mock all API routes — a placeholder key is enough to start the dev server
           OPENAI_API_KEY: sk-placeholder-for-ci
