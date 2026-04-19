@@ -78,6 +78,15 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
+      - name: Upload new snapshots (if visual tests wrote them)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-snapshots-linux
+          path: tests/visual.spec.ts-snapshots/
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ── Lighthouse CI (Performance Budget) ──────────────────────────────────────
   lighthouse:
     name: Lighthouse CI
